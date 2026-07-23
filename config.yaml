@@ -1,0 +1,25 @@
+# Configuration file for hybrid AutoQA PEFT Dual-Head training and inference
+
+model:
+  model_id: "principled-intelligence/gemma-4-E2B-it-text-only"
+  lora_r: 8
+  lora_alpha: 16
+  lora_dropout: 0.05
+
+dataset:
+  dataset_id: "strova-ai/customer_support_conversations_dataset"
+  num_samples: 5000
+  test_split: 0.15
+
+training:
+  epochs: 10
+  batch_size: 1
+  backbone_lr: 0.0002
+  head_lr: 0.001
+  weight_decay: 0.01
+  alpha: 1.0
+  beta: 1.0
+  stop_gradient_for_classification: false
+
+output:
+  output_dir: "./checkpoints/autoqa_peft_dual_head"

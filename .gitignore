@@ -1,0 +1,39 @@
+# Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Model checkpoints & output directories
+checkpoints/
+outputs/
+runs/
+wandb/
+
+# Hugging Face cache & large data files
+.cache/
+data/
+*.csv
+*.parquet
+*.jsonl
+
+# Logs
+*.log
+logs/
+
+# IDE configurations
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
