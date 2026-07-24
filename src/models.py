@@ -38,7 +38,8 @@ def build_model_and_head(config):
         device_map="auto"
     )
     
-    base_model = prepare_model_for_kbit_training(base_model)
+    # Enable input gradients for LoRA training without memory-heavy float32 embedding casting
+    base_model.enable_input_require_grads()
     
     print("Applying LoRA Config...")
     peft_config = LoraConfig(

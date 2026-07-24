@@ -9,7 +9,7 @@ from transformers import GPT2Tokenizer
 # Set seed for repeatability
 random.seed(42)
 
-def prepare_autoqa_dataset(num_samples=200):
+def prepare_autoqa_dataset(num_samples=200, clip_dialogue=True):
     """
     Downloads the Strova Customer Support Conversations dataset using huggingface_hub,
     groups turns by conversation, formats dialogue transcripts, and assigns QA labels.
@@ -47,7 +47,14 @@ def prepare_autoqa_dataset(num_samples=200):
     
     for row in records:
         turns = row["formatted_text"]
-        transcript = "\n".join(turns)
+        
+        # Apply dialogue clipping if enabled and conversation is long
+        if clip_dialogue and len(turns) > 6:
+            clipped_turns = turns[:3] + ["Agent: [... dialogue turns omitted for brevity ...]"] + turns[-3:]
+        else:
+            clipped_turns = turns
+            
+        transcript = "\n".join(clipped_turns)
         outcome = str(row["outcome"]).strip()
         intent = str(row["primary_intent"]).replace("_", " ").strip()
         

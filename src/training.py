@@ -24,14 +24,18 @@ def train_one_epoch(model, classification_head, dataloader, optimizer, config):
         class_labels = batch["class_labels"].to(config.DEVICE)
         lm_labels = batch["labels"].to(config.DEVICE)
         
-        outputs = model(
+        # Get raw backbone and lm_head to avoid computing massive logit tensors for prompt tokens
+        raw_backbone = model.base_model.model.model
+        lm_head = model.base_model.model.lm_head
+        
+        outputs = raw_backbone(
             input_ids=input_ids,
             attention_mask=attention_mask,
             output_hidden_states=True
         )
         
         # Last Layer outputs: [batch, seq, hidden]
-        last_hidden_states = outputs.hidden_states[-1]
+        last_hidden_states = outputs.last_hidden_state
         
         # Extract representations of the last token in the prompt (before generation)
         batch_size = input_ids.shape[0]
@@ -48,15 +52,20 @@ def train_one_epoch(model, classification_head, dataloader, optimizer, config):
         class_logits = classification_head(clf_hidden)
         loss_class = class_criterion(class_logits, class_labels)
         
-        # Language Modeling Logits and Loss
-        lm_logits = outputs.logits
-        shift_logits = lm_logits[..., :-1, :].contiguous()
-        shift_labels = lm_labels[..., 1:].contiguous()
+        # Language Modeling Logits and Loss - Sliced to save VRAM
+        shift_hidden = last_hidden_states[..., :-1, :]
+        shift_labels = lm_labels[..., 1:]
         
-        loss_gen = lm_criterion(
-            shift_logits.view(-1, shift_logits.size(-1)),
-            shift_labels.view(-1)
-        )
+        # Optimize memory by masking out prompt tokens (-100) before passing to lm_head
+        mask = (shift_labels != -100)
+        active_hidden = shift_hidden[mask]
+        active_labels = shift_labels[mask]
+        
+        if active_labels.numel() > 0:
+            active_logits = lm_head(active_hidden)
+            loss_gen = lm_criterion(active_logits, active_labels)
+        else:
+            loss_gen = torch.tensor(0.0, device=config.DEVICE, requires_grad=True)
         
         # Multi-task loss
         total_loss = (config.ALPHA * loss_class) + (config.BETA * loss_gen)
@@ -73,6 +82,10 @@ def train_one_epoch(model, classification_head, dataloader, optimizer, config):
         epoch_gen_loss += loss_gen.item()
         epoch_total_loss += total_loss.item()
         
+        # Log progress every 100 steps
+        if (step + 1) % 100 == 0:
+            print(f"  Step {step + 1}/{len(dataloader)} | Loss: {total_loss.item():.4f} (Class: {loss_class.item():.4f}, Gen: {loss_gen.item():.4f})", flush=True)
+            
     return {
         "class_loss": epoch_class_loss / len(dataloader),
         "gen_loss": epoch_gen_loss / len(dataloader),
@@ -101,13 +114,17 @@ def evaluate_model(model, classification_head, dataloader, config):
             class_labels = batch["class_labels"].to(config.DEVICE)
             lm_labels = batch["labels"].to(config.DEVICE)
             
-            outputs = model(
+            # Get raw backbone and lm_head
+            raw_backbone = model.base_model.model.model
+            lm_head = model.base_model.model.lm_head
+            
+            outputs = raw_backbone(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 output_hidden_states=True
             )
             
-            last_hidden_states = outputs.hidden_states[-1]
+            last_hidden_states = outputs.last_hidden_state
             batch_size = input_ids.shape[0]
             batch_indices = torch.arange(batch_size, device=config.DEVICE)
             clf_hidden = last_hidden_states[batch_indices, clf_indices]
@@ -116,14 +133,20 @@ def evaluate_model(model, classification_head, dataloader, config):
             class_logits = classification_head(clf_hidden)
             loss_class = class_criterion(class_logits, class_labels)
             
-            lm_logits = outputs.logits
-            shift_logits = lm_logits[..., :-1, :].contiguous()
-            shift_labels = lm_labels[..., 1:].contiguous()
+            # Language Modeling Logits and Loss - Sliced to save VRAM
+            shift_hidden = last_hidden_states[..., :-1, :]
+            shift_labels = lm_labels[..., 1:]
             
-            loss_gen = lm_criterion(
-                shift_logits.view(-1, shift_logits.size(-1)),
-                shift_labels.view(-1)
-            )
+            # Optimize memory by masking out prompt tokens (-100) before passing to lm_head
+            mask = (shift_labels != -100)
+            active_hidden = shift_hidden[mask]
+            active_labels = shift_labels[mask]
+            
+            if active_labels.numel() > 0:
+                active_logits = lm_head(active_hidden)
+                loss_gen = lm_criterion(active_logits, active_labels)
+            else:
+                loss_gen = torch.tensor(0.0, device=config.DEVICE)
             
             total_loss = (config.ALPHA * loss_class) + (config.BETA * loss_gen)
             

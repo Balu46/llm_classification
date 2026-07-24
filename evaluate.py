@@ -34,7 +34,7 @@ def run_evaluation():
     
     print("Loading fine-tuned LoRA adapters and head parameters...")
     # Load LoRA weights
-    model = PeftModel.from_pretrained(model, config.OUTPUT_DIR)
+    model.load_adapter(config.OUTPUT_DIR, adapter_name="default")
     # Load classification head
     load_checkpoint(model, classification_head, config.OUTPUT_DIR)
     

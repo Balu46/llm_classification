@@ -13,6 +13,7 @@ class Config:
         self.DATASET_ID = "bitext/Bitext-customer-support-llm-chatbot-training-dataset"
         self.NUM_SAMPLES = 200
         self.TEST_SPLIT = 0.15
+        self.CLIP_DIALOGUE = True
         
         self.EPOCHS = 3
         self.BATCH_SIZE = 2
@@ -52,6 +53,7 @@ class Config:
         self.DATASET_ID = data_cfg.get("dataset_id", self.DATASET_ID)
         self.NUM_SAMPLES = data_cfg.get("num_samples", self.NUM_SAMPLES)
         self.TEST_SPLIT = data_cfg.get("test_split", self.TEST_SPLIT)
+        self.CLIP_DIALOGUE = data_cfg.get("clip_dialogue", self.CLIP_DIALOGUE)
         
         train_cfg = yaml_data.get("training", {})
         self.EPOCHS = train_cfg.get("epochs", self.EPOCHS)

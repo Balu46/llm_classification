@@ -29,7 +29,7 @@ def main():
         tokenizer.pad_token_id = tokenizer.eos_token_id
         
     # 2. Fetch and augment representative Hugging Face dataset
-    raw_data = prepare_autoqa_dataset(num_samples=config.NUM_SAMPLES)
+    raw_data = prepare_autoqa_dataset(num_samples=config.NUM_SAMPLES, clip_dialogue=config.CLIP_DIALOGUE)
     
     # Train / Val Split
     val_size = int(len(raw_data) * config.TEST_SPLIT)
